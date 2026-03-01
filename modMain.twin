@@ -1,0 +1,144 @@
+Module modMain
+
+Public pNotice As UserNotification2
+Public pQC As cQueryContinue
+Public pNoticeCB As cUserNotificationCallback
+
+Public mCancel As Boolean
+    
+Private Const aumid = "JAJ.TBUserNotifyDemo"
+Private Const appName = "TBUserNotifyDemo"
+Sub Main()
+    If App.IsInIDE Then
+        MsgBox "Please run as exe", vbCritical Or vbOKOnly
+        Exit Sub
+    End If
+    SetCurrentProcessExplicitAppUserModelID StrPtr(aumid)
+    If CreateStartMenuEntry() Then
+        Form1.Show
+    End If
+    
+End Sub
+
+Private Function CreateStartMenuEntry() As Boolean
+    On Error GoTo fail
+    Dim szPath As String
+    szPath = Space$(MAX_PATH)
+    SHGetFolderPath(0, CSIDL_PROGRAMS, 0, SHGFP_TYPE_CURRENT, szPath)
+    Dim startMenuPath As String = Left$(szPath, InStr(szPath, Chr(0)) - 1) & "\" & appName & ".lnk"
+    If PathFileExists(startMenuPath) Then
+        Return True 'Already created
+    End If
+    
+    Dim shellLink As IShellLinkW
+    Dim persistFile As IPersistFile
+    Dim propStore As IPropertyStore
+    Dim pv As Variant
+    
+    ' Create the shortcut
+    Set shellLink = New ShellLinkW
+    shellLink.SetPath StrPtr(App.Path & "\" & App.EXEName & ".exe")
+    shellLink.SetDescription StrPtr(appName)
+    
+    Set persistFile = shellLink
+    Set propStore = shellLink
+    
+    ' Set the AUMID property
+    Dim key As PROPERTYKEY = PKEY_AppUserModel_ID
+    
+    InitPropVariantFromString aumid, pv
+    propStore.SetValue key, pv
+    propStore.Commit
+    PropVariantClear pv
+    
+    ' Save the shortcut
+    persistFile.Save startMenuPath, CTRUE
+    Return True
+fail:
+    MsgBox Err.Number & ", " & Err.Description
+End Function
+    
+'This code was mostly written by Leandro Ascierto, from his clsMenuImage.
+'I've simply modified the resource->hicon function to stand alone
+
+Private Type IconHeader
+    ihReserved      As Integer
+    ihType          As Integer
+    ihCount         As Integer
+End Type
+
+Private Type IconEntry
+    ieWidth         As Byte
+    ieHeight        As Byte
+    ieColorCount    As Byte
+    ieReserved      As Byte
+    iePlanes        As Integer
+    ieBitCount      As Integer
+    ieBytesInRes    As Long
+    ieImageOffset   As Long
+End Type
+ 
+
+Public Function ResIconToHICON(id As String, Optional cx As Long = 24, Optional cy As Long = 24) As LongPtr
+'returns an hIcon from an icon in the resource file
+'Icons must be added as a custom resource
+
+    Dim tIconHeader     As IconHeader
+    Dim tIconEntry()    As IconEntry
+    Dim MaxBitCount     As Long
+    Dim MaxSize         As Long
+    Dim Aproximate      As Long
+    Dim IconID          As Long
+    Dim hIcon           As LongPtr
+    Dim i               As Long
+    Dim bytIcoData() As Byte
+    
+On Error GoTo e0
+
+    bytIcoData = LoadResData(id, "CUSTOM")
+    Call CopyMemory(tIconHeader, bytIcoData(0), Len(tIconHeader))
+
+    If tIconHeader.ihCount >= 1 Then
+    
+        ReDim tIconEntry(tIconHeader.ihCount - 1)
+        
+        Call CopyMemory(tIconEntry(0), bytIcoData(Len(tIconHeader)), Len(tIconEntry(0)) * tIconHeader.ihCount)
+        
+        IconID = -1
+           
+        For i = 0 To tIconHeader.ihCount - 1
+            If tIconEntry(i).ieBitCount > MaxBitCount Then MaxBitCount = tIconEntry(i).ieBitCount
+        Next
+
+       
+        For i = 0 To tIconHeader.ihCount - 1
+            If MaxBitCount = tIconEntry(i).ieBitCount Then
+                MaxSize = CLng(tIconEntry(i).ieWidth) + CLng(tIconEntry(i).ieHeight)
+                If MaxSize > Aproximate And MaxSize <= (cx + cy) Then
+                    Aproximate = MaxSize
+                    IconID = i
+                End If
+            End If
+        Next
+                   
+        If IconID = -1 Then Exit Function
+       
+        With tIconEntry(IconID)
+            hIcon = CreateIconFromResourceEx(bytIcoData(.ieImageOffset), .ieBytesInRes, 1, &H30000, cx, cy, &H0)
+            If hIcon <> 0 Then
+                ResIconToHICON = hIcon
+            End If
+        End With
+       
+    End If
+'Debug.Print "Res hIcon=" & hIcon
+
+On Error GoTo 0
+Exit Function
+
+e0:
+Debug.Print "ResIconTohIcon.Error->" & Err.Description & " (" & Err.Number & ")"
+
+End Function
+
+End Module

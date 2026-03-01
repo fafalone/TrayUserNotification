@@ -1,0 +1,68 @@
+[FormDesignerId("61EEC5B3-BA5D-4340-8190-3B488E8B47C7")]
+[ClassId("FC2BAFE0-96D0-4BEF-8E63-94136C8FB6BA")]
+[InterfaceId("9A4BC27A-7B56-4B0C-8A08-EC07D519AA98")]
+[EventInterfaceId("E79B5144-8881-4C85-BE10-8EE58DC2B0E9")]
+Class Form1
+    Attribute VB_Name = "Form1"
+    Attribute VB_GlobalNameSpace = False
+    Attribute VB_Creatable = False
+    Attribute VB_PredeclaredId = True
+    Attribute VB_Exposed = False
+    Option Explicit
+    Private hIconS As LongPtr
+    
+    
+    Private Sub Command1_Click()
+    Dim lFlags As NII_FLAGS
+    
+    If pNotice Is Nothing Then
+        Set pNotice = New UserNotification2
+        Set pQC = New cQueryContinue
+        Set pNoticeCB = New cUserNotificationCallback
+    End If
+    
+    If Option1(0).Value = True Then
+        lFlags = NIIF_USER
+    ElseIf Option1(1).Value = True Then
+        lFlags = NIIF_INFO
+    ElseIf Option1(2).Value = True Then
+        lFlags = NIIF_WARNING
+    ElseIf Option1(3).Value = True Then
+        lFlags = NIIF_ERROR
+    ElseIf Option1(4).Value = True Then
+        lFlags = NIIF_NONE
+    End If
+    If Check1.Value = vbChecked Then
+        lFlags = lFlags Or NIIF_LARGE_ICON
+    End If
+    If Text3.Text = "" Then
+        lFlags = lFlags Or NIIF_NOSOUND
+    End If
+    
+    With pNotice
+        .SetBalloonInfo Text1.Text, Text2.Text, lFlags
+        .SetIconInfo hIconS, Text4.Text
+        If Text3.Text <> "" Then
+            .PlaySound Text3.Text
+        End If
+        .SetBalloonRetry CLng(Text5.Text), CLng(Text6.Text), CLng(Text7.Text)
+        On Error Resume Next
+        mCancel = False
+        .Show pQC, 500, pNoticeCB
+    End With
+    mCancel = True
+    End Sub
+    
+    Private Sub Form_Load()
+    hIconS = ResIconToHICON("ICO_SEARCH", 32, 32)
+    End Sub
+    
+    Private Sub Form_Unload(Cancel As Integer)
+    Set pQC = Nothing
+    Set pNoticeCB = Nothing
+    Set pNotice = Nothing
+    Call DestroyIcon(hIconS)
+    End Sub
+    
+
+End Class
